@@ -1,0 +1,262 @@
+{% extends "cosmos/base.html" %}
+{% load humanize cosmos_extras %}
+
+{% block title %}Планеты — Вселенная{% endblock %}
+
+{% block content %}
+
+<nav class="breadcrumbs" aria-label="Навигационная цепочка">
+    <a href="{% url 'cosmos:home' %}">Галактики</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">Планеты</span>
+</nav>
+
+<section class="page-hero reveal">
+    <div>
+        <span class="eyebrow">
+            <span class="eyebrow__dot"></span>
+            Каталог планет
+        </span>
+        <h1 class="page-hero__title">
+            Миры <span class="text-gradient">известной Вселенной</span>
+        </h1>
+        <p class="page-hero__lead">
+            {{ stats.planets }} {{ stats.planets|plural_ru:"планета,планеты,планет" }}
+            в {{ stats.galaxies }} {{ stats.galaxies|plural_ru:"галактике,галактиках,галактиках" }}.
+            {{ stats.habitable }} из них отмечены как потенциально обитаемые.
+            Фильтруйте по типу, наличию жизни и расстоянию до звезды.
+        </p>
+    </div>
+
+    <div class="page-hero__stats">
+        <div class="page-hero__stat">
+            <span class="page-hero__value">{{ stats.planets|intcomma }}</span>
+            <span class="page-hero__label">всего</span>
+        </div>
+        <div class="page-hero__stat page-hero__stat--gold">
+            <span class="page-hero__value">{{ stats.habitable|intcomma }}</span>
+            <span class="page-hero__label">с жизнью</span>
+        </div>
+        <div class="page-hero__stat">
+            <span class="page-hero__value">{{ stats.habitable_share }}%</span>
+            <span class="page-hero__label">доля</span>
+        </div>
+    </div>
+</section>
+
+<section class="section reveal">
+    <form class="toolbar" method="get" role="search">
+        <label class="field field--search">
+            <span class="field__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="6.5"/>
+                    <path d="M16 16l4.5 4.5"/>
+                </svg>
+            </span>
+            <span class="sr-only">Поиск по планетам</span>
+            <input type="search" name="q" value="{{ query }}" placeholder="Планета, звезда или галактика">
+        </label>
+
+        {% if active_type %}<input type="hidden" name="type" value="{{ active_type }}">{% endif %}
+        {% if life %}<input type="hidden" name="life" value="{{ life }}">{% endif %}
+
+        <label class="field field--select">
+            <span class="field__label">Сортировка</span>
+            <select name="sort">
+                {% for option in sort_options %}
+                    <option value="{{ option.code }}" {% if option.active %}selected{% endif %}>
+                        {{ option.label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <button class="btn btn--primary" type="submit">Найти</button>
+
+        {% if has_filters %}
+            <a class="btn btn--ghost" href="{% url 'cosmos:planets' %}">Сбросить</a>
+        {% endif %}
+    </form>
+
+    <div class="chips" aria-label="Фильтр по наличию жизни">
+        {% for item in life_filters %}
+            <a class="chip {% if item.active %}is-active{% endif %}"
+               href="{% querystring life=item.code page=None %}">
+                {{ item.label }}
+                <span class="chip__count">{{ item.count }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="chips" aria-label="Фильтр по типу планеты">
+        {% for item in type_filters %}
+            <a class="chip {% if item.active %}is-active{% endif %}"
+               href="{% querystring type=item.code page=None %}">
+                {{ item.label }}
+                <span class="chip__count">{{ item.count }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <div class="result-line">
+        <span>
+            Найдено <strong>{{ total }}</strong>
+            {{ total|plural_ru:"планета,планеты,планет" }}
+        </span>
+        {% if query %}
+            <span class="muted">по запросу «{{ query }}»</span>
+        {% endif %}
+    </div>
+
+    {% if planets %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Планета</th>
+                        <th scope="col">Тип</th>
+                        <th scope="col">Звезда</th>
+                        <th scope="col">Галактика</th>
+                        <th scope="col" class="is-num">Радиус</th>
+                        <th scope="col" class="is-num">Расстояние</th>
+                        <th scope="col" class="is-num">Год</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for planet in planets %}
+                        <tr class="{% if planet.has_life %}is-habitable{% endif %}">
+                            <td data-label="Планета">
+                                <span class="table-planet">
+                                    <span class="planet-dot pd--{{ planet.planet_type }}" aria-hidden="true"></span>
+                                    <a class="table-link" href="{% url 'cosmos:planet_detail' planet.pk %}">
+                                        {{ planet.name }}
+                                    </a>
+                                    {% if planet.has_life %}
+                                        <span class="badge badge--gold">жизнь</span>
+                                    {% endif %}
+                                </span>
+                            </td>
+
+                            <td data-label="Тип">
+                                <span class="badge badge--type">{{ planet.get_planet_type_display }}</span>
+                            </td>
+
+                            <td data-label="Звезда">
+                                <a class="table-link" href="{% url 'cosmos:star_detail' planet.star.pk %}">
+                                    {{ planet.star.name }}
+                                </a>
+                            </td>
+
+                            <td data-label="Галактика">
+                                <a class="table-link" href="{% url 'cosmos:galaxy_detail' planet.star.galaxy.pk %}">
+                                    {{ planet.star.galaxy.name }}
+                                </a>
+                            </td>
+
+                            <td data-label="Радиус" class="is-num">
+                                {% if planet.radius_km %}{{ planet.radius_km|intcomma }} км{% else %}—{% endif %}
+                            </td>
+
+                            <td data-label="Расстояние" class="is-num">
+                                {% if planet.distance_au is not None %}
+                                    {{ planet.distance_au|num:"2" }} а.е.
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+
+                            <td data-label="Год" class="is-num">
+                                {{ planet.discovery_year|default_if_none:"—" }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+            <nav class="pagination" aria-label="Страницы каталога">
+                {% if page_obj.has_previous %}
+                    <a class="pagination__link" href="{% querystring page=page_obj.previous_page_number %}">
+                        ← Назад
+                    </a>
+                {% else %}
+                    <span class="pagination__link is-disabled">← Назад</span>
+                {% endif %}
+
+                <span class="pagination__info">
+                    Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                    <a class="pagination__link" href="{% querystring page=page_obj.next_page_number %}">
+                        Вперёд →
+                    </a>
+                {% else %}
+                    <span class="pagination__link is-disabled">Вперёд →</span>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty">
+            <span class="empty__glyph" aria-hidden="true"></span>
+            <h3>Ничего не найдено</h3>
+            <p>Попробуйте другой запрос или сбросьте фильтры.</p>
+            <a class="btn btn--ghost" href="{% url 'cosmos:planets' %}">Сбросить фильтры</a>
+        </div>
+    {% endif %}
+</section>
+
+<section class="section reveal">
+    <div class="section-head">
+        <div>
+            <h2 class="section-title">Рекорды каталога</h2>
+            <p class="section-sub">Крайние значения среди планет с заполненными данными</p>
+        </div>
+    </div>
+
+    <div class="grid grid--records">
+        <article class="record">
+            <span class="record__label">Самая большая</span>
+            {% if records.largest %}
+                <a class="record__name" href="{% url 'cosmos:planet_detail' records.largest.pk %}">{{ records.largest.name }}</a>
+                <span class="record__value">{{ records.largest.radius_km|intcomma }} км</span>
+            {% else %}
+                <span class="record__value">—</span>
+            {% endif %}
+        </article>
+
+        <article class="record">
+            <span class="record__label">Самая маленькая</span>
+            {% if records.smallest %}
+                <a class="record__name" href="{% url 'cosmos:planet_detail' records.smallest.pk %}">{{ records.smallest.name }}</a>
+                <span class="record__value">{{ records.smallest.radius_km|intcomma }} км</span>
+            {% else %}
+                <span class="record__value">—</span>
+            {% endif %}
+        </article>
+
+        <article class="record">
+            <span class="record__label">Дальше всех от звезды</span>
+            {% if records.farthest %}
+                <a class="record__name" href="{% url 'cosmos:planet_detail' records.farthest.pk %}">{{ records.farthest.name }}</a>
+                <span class="record__value">{{ records.farthest.distance_au|num:"2" }} а.е.</span>
+            {% else %}
+                <span class="record__value">—</span>
+            {% endif %}
+        </article>
+
+        <article class="record">
+            <span class="record__label">Открыта раньше всех</span>
+            {% if records.oldest %}
+                <a class="record__name" href="{% url 'cosmos:planet_detail' records.oldest.pk %}">{{ records.oldest.name }}</a>
+                <span class="record__value">{{ records.oldest.discovery_year }}</span>
+            {% else %}
+                <span class="record__value">—</span>
+            {% endif %}
+        </article>
+    </div>
+</section>
+
+{% endblock %}

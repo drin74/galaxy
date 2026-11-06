@@ -1,0 +1,195 @@
+{% extends "cosmos/base.html" %}
+{% load humanize cosmos_extras %}
+
+{% block title %}{{ planet.name }} — Вселенная{% endblock %}
+
+{% block content %}
+
+<nav class="breadcrumbs" aria-label="Навигационная цепочка">
+    <a href="{% url 'cosmos:home' %}">Галактики</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'cosmos:galaxy_detail' planet.star.galaxy.pk %}">{{ planet.star.galaxy.name }}</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'cosmos:star_detail' planet.star.pk %}">{{ planet.star.name }}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ planet.name }}</span>
+</nav>
+
+<section class="detail-hero reveal">
+    <div class="detail-hero__visual">
+        <span class="planet-visual pv--{{ planet.planet_type }} planet-visual--xl" aria-hidden="true"></span>
+    </div>
+
+    <div class="detail-hero__body">
+        <span class="eyebrow">
+            <span class="eyebrow__dot"></span>
+            {{ planet.get_planet_type_display }} · {{ planet.star.name }}
+        </span>
+
+        <h1 class="detail-hero__title">{{ planet.name }}</h1>
+
+        <p class="detail-hero__lead">
+            Планета в системе звезды
+            <a class="link" href="{% url 'cosmos:star_detail' planet.star.pk %}">{{ planet.star.name }}</a>,
+            галактика
+            <a class="link" href="{% url 'cosmos:galaxy_detail' planet.star.galaxy.pk %}">{{ planet.star.galaxy.name }}</a>.
+            {% if planet.has_life %}
+                В каталоге отмечена как планета с возможной жизнью.
+            {% endif %}
+        </p>
+
+        <div class="badges">
+            <span class="badge badge--type">{{ planet.get_planet_type_display }}</span>
+            {% if planet.has_life %}
+                <span class="badge badge--gold">возможна жизнь</span>
+            {% else %}
+                <span class="badge">жизнь не отмечена</span>
+            {% endif %}
+            {% if planet.discovery_year %}
+                <span class="badge">открыта в {{ planet.discovery_year }}</span>
+            {% endif %}
+        </div>
+
+        <div class="detail-facts">
+            <div class="fact">
+                <span class="fact__label">Радиус</span>
+                <span class="fact__value">
+                    {% if planet.radius_km %}{{ planet.radius_km|intcomma }} км{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Масса</span>
+                <span class="fact__value">
+                    {% if planet.mass_earth %}{{ planet.mass_earth|num:"2" }} M⊕{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">От звезды</span>
+                <span class="fact__value">
+                    {% if planet.distance_au is not None %}
+                        {{ planet.distance_au|num:"2" }} а.е.
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Период обращения</span>
+                <span class="fact__value">
+                    {% if planet.orbital_period_days %}
+                        {{ planet.orbital_period_days|num:"1" }} сут
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="split reveal">
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Паспорт планеты</h2>
+            <span class="panel__hint">Planet #{{ planet.pk }}</span>
+        </div>
+
+        <dl class="spec-list">
+            <div class="spec-list__row">
+                <dt>Название</dt>
+                <dd>{{ planet.name }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Тип</dt>
+                <dd>{{ planet.get_planet_type_display }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Радиус</dt>
+                <dd>{% if planet.radius_km %}{{ planet.radius_km|intcomma }} км{% else %}—{% endif %}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Масса</dt>
+                <dd>{% if planet.mass_earth %}{{ planet.mass_earth|num:"2" }} M⊕{% else %}—{% endif %}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Расстояние от звезды</dt>
+                <dd>
+                    {% if planet.distance_au is not None %}
+                        {{ planet.distance_au|num:"2" }} а.е.
+                    {% else %}
+                        —
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Период обращения</dt>
+                <dd>
+                    {% if planet.orbital_period_days %}
+                        {{ planet.orbital_period_days|num:"1" }} сут
+                    {% else %}
+                        —
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Год открытия</dt>
+                <dd>{{ planet.discovery_year|default_if_none:"неизвестен" }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Звезда</dt>
+                <dd><a class="link" href="{% url 'cosmos:star_detail' planet.star.pk %}">{{ planet.star.name }}</a></dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Галактика</dt>
+                <dd><a class="link" href="{% url 'cosmos:galaxy_detail' planet.star.galaxy.pk %}">{{ planet.star.galaxy.name }}</a></dd>
+            </div>
+        </dl>
+
+        <p class="panel__foot">
+            Данные получены через <code>PlanetRepository</code>.
+        </p>
+    </section>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">
+                {% if siblings %}Другие планеты системы{% else %}Родительская звезда{% endif %}
+            </h2>
+            <span class="panel__hint">{{ planet.star.name }}</span>
+        </div>
+
+        {% if siblings %}
+            <ul class="habitable-list">
+                {% for other in siblings %}
+                    <li>
+                        <a class="habitable-item" href="{% url 'cosmos:planet_detail' other.pk %}">
+                            <span class="planet-visual pv--{{ other.planet_type }} planet-visual--sm" aria-hidden="true"></span>
+                            <span class="habitable-item__body">
+                                <span class="habitable-item__name">{{ other.name }}</span>
+                                <span class="habitable-item__meta">{{ other.get_planet_type_display }}</span>
+                            </span>
+                            {% if other.has_life %}
+                                <span class="badge badge--gold">жизнь</span>
+                            {% else %}
+                                <span class="habitable-item__arrow" aria-hidden="true">→</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+            <p class="panel__foot">
+                <a class="link" href="{% url 'cosmos:star_detail' planet.star.pk %}">
+                    Все планеты звезды {{ planet.star.name }} →
+                </a>
+            </p>
+        {% else %}
+            <p class="muted">
+                Других планет в системе пока нет. Откройте
+                <a class="link" href="{% url 'cosmos:star_detail' planet.star.pk %}">карточку звезды</a>,
+                чтобы увидеть её параметры.
+            </p>
+        {% endif %}
+    </section>
+</div>
+
+{% endblock %}

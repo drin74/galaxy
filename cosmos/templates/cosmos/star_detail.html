@@ -1,0 +1,167 @@
+{% extends "cosmos/base.html" %}
+{% load humanize cosmos_extras %}
+
+{% block title %}{{ star.name }} — Вселенная{% endblock %}
+
+{% block content %}
+
+<nav class="breadcrumbs" aria-label="Навигационная цепочка">
+    <a href="{% url 'cosmos:home' %}">Галактики</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'cosmos:galaxy_detail' star.galaxy.pk %}">{{ star.galaxy.name }}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ star.name }}</span>
+</nav>
+
+<section class="detail-hero reveal">
+    <div class="detail-hero__visual">
+        <span class="star-visual {% if star.spectral_class %}sc-{{ star.spectral_class }}{% else %}sc-none{% endif %}" aria-hidden="true"></span>
+    </div>
+
+    <div class="detail-hero__body">
+        <span class="eyebrow">
+            <span class="eyebrow__dot"></span>
+            Звезда · {{ star.galaxy.name }}
+        </span>
+
+        <h1 class="detail-hero__title">{{ star.name }}</h1>
+
+        <p class="detail-hero__lead">
+            {% if star.spectral_class %}
+                Спектральный класс: {{ star.get_spectral_class_display }}.
+            {% else %}
+                Спектральный класс не указан.
+            {% endif %}
+            В каталоге у этой звезды {{ planets|length }}
+            {{ planets|length|plural_ru:"планета,планеты,планет" }}.
+        </p>
+
+        <div class="detail-facts">
+            <div class="fact">
+                <span class="fact__label">Температура</span>
+                <span class="fact__value">
+                    {% if star.temperature_k %}{{ star.temperature_k|intcomma }} K{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Масса</span>
+                <span class="fact__value">
+                    {% if star.mass_solar %}{{ star.mass_solar }} M☉{% else %}—{% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Спектральный класс</span>
+                <span class="fact__value">{{ star.spectral_class|default:"—" }}</span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Галактика</span>
+                <span class="fact__value">
+                    <a class="link" href="{% url 'cosmos:galaxy_detail' star.galaxy.pk %}">{{ star.galaxy.name }}</a>
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section reveal">
+    <div class="section-head">
+        <div>
+            <h2 class="section-title">Планеты звезды</h2>
+            <p class="section-sub">{{ planets|length }} {{ planets|length|plural_ru:"объект,объекта,объектов" }} в системе {{ star.name }}</p>
+        </div>
+        <a class="section-link" href="{% url 'cosmos:galaxy_detail' star.galaxy.pk %}">
+            ← {{ star.galaxy.name }}
+        </a>
+    </div>
+
+    {% if planets %}
+        <div class="grid grid--planets">
+            {% for planet in planets %}
+                <a class="card planet-card reveal" href="{% url 'cosmos:planet_detail' planet.pk %}">
+                    <div class="planet-card__head">
+                        <span class="planet-visual pv--{{ planet.planet_type }}" aria-hidden="true"></span>
+                        <div>
+                            <h3 class="card__title">{{ planet.name }}</h3>
+                            <p class="card__sub">{{ planet.get_planet_type_display }}</p>
+                        </div>
+                        {% if planet.has_life %}
+                            <span class="badge badge--gold">жизнь</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="mini-stats">
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">Радиус</span>
+                            <span class="mini-stat__value">
+                                {% if planet.radius_km %}{{ planet.radius_km|intcomma }} км{% else %}—{% endif %}
+                            </span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">От звезды</span>
+                            <span class="mini-stat__value">
+                                {% if planet.distance_au is not None %}
+                                    {{ planet.distance_au|num:"2" }} а.е.
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">Период</span>
+                            <span class="mini-stat__value">
+                                {% if planet.orbital_period_days %}
+                                    {{ planet.orbital_period_days|num:"1" }} сут
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <span class="card__arrow" aria-hidden="true">→</span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <span class="empty__glyph" aria-hidden="true"></span>
+            <h3>Планет пока нет</h3>
+            <p>У этой звезды ещё не добавлено ни одной планеты.</p>
+            <a class="btn btn--ghost" href="{% url 'cosmos:planets' %}">Перейти к каталогу планет</a>
+        </div>
+    {% endif %}
+</section>
+
+{% if siblings %}
+<section class="section reveal">
+    <div class="section-head">
+        <div>
+            <h2 class="section-title">Другие звёзды галактики</h2>
+            <p class="section-sub">Ближайшие соседи по каталогу</p>
+        </div>
+    </div>
+
+    <div class="grid grid--stars">
+        {% for other in siblings %}
+            <a class="card star-card star-card--compact" href="{% url 'cosmos:star_detail' other.pk %}">
+                <div class="star-card__head">
+                    <span class="star-dot star-dot--lg {% if other.spectral_class %}sc-{{ other.spectral_class }}{% else %}sc-none{% endif %}" aria-hidden="true"></span>
+                    <div class="star-card__title">
+                        <h3 class="card__title">{{ other.name }}</h3>
+                        <p class="card__sub">
+                            {% if other.spectral_class %}
+                                {{ other.get_spectral_class_display }}
+                            {% else %}
+                                Класс не указан
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <span class="card__arrow" aria-hidden="true">→</span>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}

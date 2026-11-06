@@ -1,0 +1,246 @@
+{% extends "cosmos/base.html" %}
+{% load humanize cosmos_extras %}
+
+{% block title %}{{ galaxy.name }} — Вселенная{% endblock %}
+
+{% block content %}
+
+<nav class="breadcrumbs" aria-label="Навигационная цепочка">
+    <a href="{% url 'cosmos:home' %}">Галактики</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ galaxy.name }}</span>
+</nav>
+
+<section class="detail-hero reveal">
+    <div class="detail-hero__visual">
+        <span class="galaxy-visual gv--{{ galaxy.galaxy_type }} galaxy-visual--xl" aria-hidden="true"></span>
+    </div>
+
+    <div class="detail-hero__body">
+        <span class="eyebrow">
+            <span class="eyebrow__dot"></span>
+            {{ galaxy.get_galaxy_type_display }} галактика
+        </span>
+
+        <h1 class="detail-hero__title">{{ galaxy.name }}</h1>
+
+        <p class="detail-hero__lead">
+            {{ galaxy.description|default:"Описание этой галактики пока не добавлено." }}
+        </p>
+
+        <div class="detail-facts">
+            <div class="fact">
+                <span class="fact__label">Расстояние</span>
+                <span class="fact__value">
+                    {% if galaxy.distance_ly %}
+                        {{ galaxy.distance_ly|intcomma }} св. лет
+                    {% elif galaxy.distance_ly == 0 %}
+                        наш дом
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Диаметр</span>
+                <span class="fact__value">
+                    {% if galaxy.diameter_ly %}
+                        {{ galaxy.diameter_ly|intcomma }} св. лет
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Возраст</span>
+                <span class="fact__value">
+                    {% if galaxy.age_mln_years %}
+                        {{ galaxy.age_mln_years|intcomma }} млн лет
+                    {% else %}
+                        —
+                    {% endif %}
+                </span>
+            </div>
+            <div class="fact">
+                <span class="fact__label">Объектов</span>
+                <span class="fact__value">{{ galaxy.star_count }} зв. · {{ galaxy.planet_count }} пл.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section reveal">
+    <div class="section-head">
+        <div>
+            <h2 class="section-title">Звёзды</h2>
+            <p class="section-sub">{{ stars|length }} {{ stars|length|plural_ru:"объект,объекта,объектов" }} в этой галактике</p>
+        </div>
+        <a class="section-link" href="{% url 'cosmos:home' %}#galaxies">
+            ← Все галактики
+        </a>
+    </div>
+
+    <form class="toolbar" method="get" role="search">
+        <label class="field field--search">
+            <span class="field__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <circle cx="11" cy="11" r="6.5"/>
+                    <path d="M16 16l4.5 4.5"/>
+                </svg>
+            </span>
+            <span class="sr-only">Поиск по звёздам</span>
+            <input type="search" name="q" value="{{ query }}" placeholder="Название звезды">
+        </label>
+
+        {% if active_class %}
+            <input type="hidden" name="class" value="{{ active_class }}">
+        {% endif %}
+
+        <label class="field field--select">
+            <span class="field__label">Сортировка</span>
+            <select name="sort">
+                {% for option in sort_options %}
+                    <option value="{{ option.code }}" {% if option.active %}selected{% endif %}>
+                        {{ option.label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <button class="btn btn--primary" type="submit">Применить</button>
+
+        {% if has_filters %}
+            <a class="btn btn--ghost" href="{% url 'cosmos:galaxy_detail' galaxy.pk %}">Сбросить</a>
+        {% endif %}
+    </form>
+
+    <div class="chips" aria-label="Фильтр по спектральному классу">
+        {% for item in spectral_filters %}
+            <a class="chip {% if item.active %}is-active{% endif %}"
+               href="{% querystring class=item.code %}">
+                {{ item.label }}
+                <span class="chip__count">{{ item.count }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    {% if stars %}
+        <div class="grid grid--stars">
+            {% for star in stars %}
+                <a class="card star-card reveal" href="{% url 'cosmos:star_detail' star.pk %}">
+                    <div class="star-card__head">
+                        <span class="star-dot star-dot--lg {% if star.spectral_class %}sc-{{ star.spectral_class }}{% else %}sc-none{% endif %}" aria-hidden="true"></span>
+                        <div class="star-card__title">
+                            <h3 class="card__title">{{ star.name }}</h3>
+                            <p class="card__sub">
+                                {% if star.spectral_class %}
+                                    {{ star.get_spectral_class_display }}
+                                {% else %}
+                                    Класс не указан
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mini-stats">
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">Температура</span>
+                            <span class="mini-stat__value">
+                                {% if star.temperature_k %}{{ star.temperature_k|intcomma }} K{% else %}—{% endif %}
+                            </span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">Масса</span>
+                            <span class="mini-stat__value">
+                                {% if star.mass_solar %}{{ star.mass_solar }} M☉{% else %}—{% endif %}
+                            </span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat__label">Планет</span>
+                            <span class="mini-stat__value">{{ star.planets.all|length }}</span>
+                        </div>
+                    </div>
+
+                    <div class="planet-dots" aria-hidden="true">
+                        {% for planet in star.planets.all %}
+                            <span class="planet-dot pd--{{ planet.planet_type }}" title="{{ planet.name }}"></span>
+                        {% empty %}
+                            <span class="planet-dots__empty">нет планет</span>
+                        {% endfor %}
+                    </div>
+
+                    <span class="card__arrow" aria-hidden="true">→</span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <span class="empty__glyph" aria-hidden="true"></span>
+            <h3>Звёзды не найдены</h3>
+            <p>Измените запрос или выберите другой спектральный класс.</p>
+            <a class="btn btn--ghost" href="{% url 'cosmos:galaxy_detail' galaxy.pk %}">Сбросить фильтры</a>
+        </div>
+    {% endif %}
+</section>
+
+<div class="split reveal">
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Спектральный состав галактики</h2>
+            <span class="panel__hint">{{ spectral.total }} звёзд</span>
+        </div>
+
+        {% if spectral.total %}
+            <div class="spectral">
+                {% for row in spectral.rows %}
+                    <div class="spectral__row" title="{{ row.name }} — {{ row.description }}: {{ row.count }} ({{ row.share }}%)">
+                        <span class="star-dot sc-{{ row.code }}" aria-hidden="true"></span>
+                        <span class="spectral__code">{{ row.code }}</span>
+                        <span class="spectral__bar">
+                            <span class="spectral__fill sc-{{ row.code }}" style="width: {{ row.width }}%"></span>
+                        </span>
+                        <span class="spectral__count">{{ row.count }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">У звёзд этой галактики не указан спектральный класс.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Паспорт объекта</h2>
+            <span class="panel__hint">Galaxy</span>
+        </div>
+
+        <dl class="spec-list">
+            <div class="spec-list__row">
+                <dt>Название</dt>
+                <dd>{{ galaxy.name }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Тип</dt>
+                <dd>{{ galaxy.get_galaxy_type_display }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Звёзд</dt>
+                <dd>{{ galaxy.star_count }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>Планет</dt>
+                <dd>{{ galaxy.planet_count }}</dd>
+            </div>
+            <div class="spec-list__row">
+                <dt>В каталоге</dt>
+                <dd>#{{ galaxy.pk }}</dd>
+            </div>
+        </dl>
+
+        <p class="panel__foot">
+            Данные получены через <code>GalaxyRepository</code> и <code>StarRepository</code>.
+        </p>
+    </section>
+</div>
+
+{% endblock %}
